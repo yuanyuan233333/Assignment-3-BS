@@ -38,14 +38,10 @@ def minimum_variance_portfolio(cov_matrix: np.ndarray) -> np.ndarray:
     )
 
     n = cov_matrix.shape[0]
-    
-    # We solve the linear system Σ * x = 1, which gives us x = Σ^{-1} * 1
-    # This is numerically much more stable than doing np.linalg.inv(cov_matrix) @ ones_vec
-    min_var_ptf_numerator = np.linalg.solve(cov_matrix, np.ones(n))
+    ones_vec = np.ones((n, 1))
 
-    # The denominator 1^T * Σ^{-1} * 1 is simply the sum of the elements in our numerator
-    # We normalize the unscaled weights so they sum to exactly 1
-    min_var_ptf_weights = min_var_ptf_numerator / np.sum(min_var_ptf_numerator)
+    min_var_ptf_numerator = np.linalg.solve(cov_matrix, ones_vec) #inv is numerricaly instable and expensive (# Σ⁻¹ * 1 risolve il sistema Σ * x = 1)
+    min_var_ptf_weights = min_var_ptf_numerator / (ones_vec.T @ min_var_ptf_numerator) # w = (Σ⁻¹ * 1) / (1ᵀ * Σ⁻¹ * 1)
 
     return min_var_ptf_weights.flatten()
 
@@ -104,24 +100,23 @@ def mean_variance_portfolio(
         raise ValueError(
             f"risk_aversion must be strictly positive, got {risk_aversion}"
         )
-
     n = cov_matrix.shape[0]
-    ones_vec = np.ones(n)
+    ones_vec = np.ones((n, 1))
+    mu = expected_returns.reshape(-1, 1)
 
-    # Step 1: Solve for z1 = Σ^{-1} * 1 and z2 = Σ^{-1} * μ
-    z1 = np.linalg.solve(cov_matrix, ones_vec)
-    z2 = np.linalg.solve(cov_matrix, expected_returns)
+    # Solve Σ⁻¹μ and Σ⁻¹1 simultaneously using np.linalg.solve
+    cov_inv_mu = np.linalg.solve(cov_matrix, mu)           # Σ⁻¹μ
+    cov_inv_ones = np.linalg.solve(cov_matrix, ones_vec)   # Σ⁻¹1
 
-    # Step 2: Calculate intermediate scalars
-    A = np.sum(z1)  # Represents 1^T * Σ^{-1} * 1
-    B = np.sum(z2)  # Represents 1^T * Σ^{-1} * μ
+    # Minimum variance portfolio weights: (Σ⁻¹1) / (1ᵀΣ⁻¹1)
+    w_mv = cov_inv_ones / (ones_vec.T @ cov_inv_ones)
 
-    # Step 3: Calculate the Lagrange multiplier (λ) for the budget constraint
-    # Derived from setting 1^T * w = 1
-    lambda_val = (risk_aversion - B) / A
+    # Speculative term: excess return direction, budget-neutral (weights sum to zero)
+    # (Σ⁻¹μ - (1ᵀΣ⁻¹μ / 1ᵀΣ⁻¹1) * Σ⁻¹1)
+    speculative_term = cov_inv_mu - (ones_vec.T @ cov_inv_mu) / (ones_vec.T @ cov_inv_ones) * cov_inv_ones
 
-    # Step 4: Calculate final weights: w = (1 / γ) * Σ^{-1} * (μ + λ * 1)
-    mean_var_ptf_weights = (z2 + lambda_val * z1) / risk_aversion
+    # Mean-variance portfolio: minimum variance + scaled speculative term
+    mean_var_ptf_weights = w_mv + (1 / risk_aversion) * speculative_term
+    
 
     return mean_var_ptf_weights.flatten()
-

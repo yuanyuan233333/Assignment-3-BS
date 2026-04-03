@@ -9,8 +9,7 @@ def principal_component_analysis(
     Given a matrix, returns the eigenvalues vector and the eigenvectors matrix.
     """
 
-    eigenvalues, eigenvectors = np.linalg.eigh(matrix)  #We assume that the matrix is symmetric.
-
+    eigenvalues, eigenvectors = np.linalg.eigh(matrix)  # simmetric/herm matrix
     # Sorting from greatest to lowest the eigenvalues and the eigenvectors
     sort_indices = eigenvalues.argsort()[::-1]
 

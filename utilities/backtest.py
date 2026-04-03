@@ -25,7 +25,7 @@ def _align_portfolios_and_returns(
     aligned_portfolios = (
         portfolios.loc[:, overlapping_assets]
         .reindex(returns.index)
-        .bfill()
+        .ffill() #bug
         .shift()
         .dropna(axis=0, how="all")
     )
